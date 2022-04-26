@@ -1,8 +1,15 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../config/connection");
+const bcrypt = require("bcrypt");
 
 // create our User model
-class User extends Model {}
+class User extends Model { 
+    // set up method to run on instance data (per user) to check password
+    checkPassword(loginPw) {
+        // the .compareSync method can confirm or deny that the supplised password matches the hashed password stored on the object
+        return bcrypt.compareSync(loginPw, this.password);
+    }
+}
 
 // define table columns and configuration
 User.init(
@@ -45,8 +52,29 @@ User.init(
             }
         }
     },
-    // the second object accepts configures certain options for the table
     {
+        // hooks gets added inside the second object
+        hooks: {
+            // set up beforeCreate lifecycle "hook" functionality
+            async beforeCreate(newUserData) {
+                newUserData.password = await bcrypt.hash(newUserData.password, 10);
+                // newUserData is then returned to the application
+                return newUserData;
+                // in the hash function, we pass in the userData object that has the password property, also the saltRound value of 10
+                // the resulting hashed password if then passed to the Promise object as newUserData object
+                // return bcrypt.hash(userData.password, 10).then(newUserData => {
+                //     return newUserData
+                // });
+            },
+            // set up beforeUpdate lifecycle "hook" functionality
+            async beforeUpdate(updateUserData) {
+                updatedUserData.password = await bcrypt.hash(updatedUserData.password, 10);
+                return updateUserData;
+            }
+        },
+
+        // the second object accepts configures certain options for the table
+
         // TABLE CONFIGURATION OPTIONS GO HERE (https://sequelize.org/v5/manual/models-definition.html#configuration))
 
         // pass in our imported sequelize connection (the direct connection to our database)

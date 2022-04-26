@@ -4,7 +4,7 @@ const router = require("express").Router();
 const { User } = require("../../models");
 
 // GET /api/users
-router.get("/", (req,res) => {
+router.get("/", (req, res) => {
     // Access our User model and run .findAll()
     User.findAll({
         // passing an object into the method
@@ -39,7 +39,7 @@ router.get("/:id", (req, res) => {
 });
 
 // POST /api/users
-router.post("/", (req,res) => {
+router.post("/", (req, res) => {
     // expects {username: "Lernantino", email: 'lernantino@gmail.com', password: 'password1234'}
     User.create({
         username: req.body.username,
@@ -53,10 +53,39 @@ router.post("/", (req,res) => {
     });
 });
 
+router.post("/login", (req, res) => {
+    // expects {email: 'lernantino@gmail.com', password: 'password1234'}
+    User.findOne({
+        where: {
+            email: req.body.email
+        }
+        // result of the query is passed as dbUserData to the .then part of the findOne() method
+    }).then(dbUserData => {
+        if (!dbUserData) {
+            res.status(400).json({ message: "No user with that email address!" });
+            return;
+        }
+
+        // if the query result is successful (not empty) we can call .checkPassword() which will be on the dbUserData object
+        // passing the plaintext password (req.body.password) into .checkPassword() as the arguement
+        const validPassword = dbUserData.checkPassword(req.body.password);
+
+        // .checkPassword() will return true or false and that boolean value will be stored to the variable validPassword
+        if (!validPassword) {
+            res.status(400).json({ message: "Incorrect password!" });
+            return;
+        }
+
+        res.json({ user: dbUserData, message: "you are now logged in!" });
+        // verify user
+    });
+});
+
 // PUT /api/users/1
-router.put("/:id", (req,res) => {
+router.put("/:id", (req, res) => {
     // if req.body has exact ke/value pairs to match the model, you can just use "req.body" instead
     User.update(req.body, {
+        individualHooks: true,
         where: {
             id: req.params.id
         }
@@ -75,7 +104,7 @@ router.put("/:id", (req,res) => {
 });
 
 // DELETE /api/users/1
-router.delete("/:id", (req,res) => {
+router.delete("/:id", (req, res) => {
     User.destroy({
         where: {
             id: req.params.id
