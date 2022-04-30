@@ -30,6 +30,14 @@ router.get("/:id", (req, res) => {
                 attributes: ["id", "title", "post_url", "created_at"]
             },
             {
+                model: Comment,
+                attributes: ["id", "comment_text", "created_at"],
+                include: {
+                    model: Post,
+                    attributes: ["title"]
+                }
+            },
+            {
                 // when you query a single user, we receive the title info of every post they've ever voted on
                 // had to include Post model, but you need to go through the Vote table
                 model: Post,
@@ -97,7 +105,7 @@ router.post("/login", (req, res) => {
 
 // PUT /api/users/1
 router.put("/:id", (req, res) => {
-    // if req.body has exact ke/value pairs to match the model, you can just use "req.body" instead
+    // if req.body has exact key/value pairs to match the model, you can just use "req.body" instead
     User.update(req.body, {
         individualHooks: true,
         where: {

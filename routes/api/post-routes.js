@@ -1,13 +1,14 @@
 const router = require("express").Router();
 const sequelize = require("../../config/connection");
 
-const { Post, User, Vote } = require("../../models");
+const { Post, User, Vote, Comment } = require("../../models");
 
 // get all posts
 
 router.get("/", (req, res) => {
   console.log("================");
   Post.findAll({
+    order: [["created_at", "DESC"]],
     attributes: [
       'id',
       'post_url',
@@ -17,8 +18,16 @@ router.get("/", (req, res) => {
     ],
     // query configuration
 
-    order: [["created_at", "DESC"]],
     include: [
+      {
+        // the comment model includes the user model itself so it can attach the username to the comment
+        model: Comment,
+        attributes: ["id", "comment_text", "post_id", "user_id", "created_at"],
+        include: {
+          model: User,
+          attributes: ["username"]
+        }
+      },
       {
         // expressed as an array of objects
         model: User,
@@ -48,6 +57,14 @@ router.get('/:id', (req, res) => {
       [sequelize.literal('(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)'), 'vote_count']
     ],
     include: [
+      {
+        model: Comment,
+        attributes: ["id", "comment_text", "post_id", "user_id", "created_at"],
+        include: {
+          model: User,
+          attributes: ["username"]
+        }
+      },
       {
         model: User,
         attributes: ['username']
@@ -89,11 +106,11 @@ router.post('/', (req, res) => {
 router.put("/upvote", (req, res) => {
   // custom static method created in models/Post.js
   Post.upvote(req.body, { Vote })
-  . then(updatedPostData => res.json(updatedPostData))
-  .catch(err => {
-    console.log(err);
-    res.status(400).json(err);
-  });
+    .then(updatedPostData => res.json(updatedPostData))
+    .catch(err => {
+      console.log(err);
+      res.status(400).json(err);
+    });
   // // create the vote
   // Vote.create({
   //   user_id: req.body.user_id,
@@ -122,51 +139,51 @@ router.put("/upvote", (req, res) => {
   //   .catch(err => {
   //     console.log(err);
   //     res.status(400).json(err);
-    // });
-  });
+  // });
+});
 
-  // // update a post's title
-  router.put('/:id', (req, res) => {
-    Post.update(
-      {
-        title: req.body.title
-      },
-      {
-        where: {
-          id: req.params.id
-        }
-      }
-    )
-      .then(dbPostData => {
-        if (!dbPostData) {
-          res.status(404).json({ message: 'No post found with this id' });
-          return;
-        }
-        res.json(dbPostData);
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
-  });
-
-  // delete a post
-  router.delete('/:id', (req, res) => {
-    Post.destroy({
+// // update a post's title
+router.put('/:id', (req, res) => {
+  Post.update(
+    {
+      title: req.body.title
+    },
+    {
       where: {
         id: req.params.id
       }
+    }
+  )
+    .then(dbPostData => {
+      if (!dbPostData) {
+        res.status(404).json({ message: 'No post found with this id' });
+        return;
+      }
+      res.json(dbPostData);
     })
-      .then(dbPostData => {
-        if (!dbPostData) {
-          res.status(404).json({ message: 'No post found with this id' });
-          return;
-        }
-        res.json(dbPostData);
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
-  });
-  module.exports = router;
+    .catch(err => {
+      console.log(err);
+      res.status(500).json(err);
+    });
+});
+
+// delete a post
+router.delete('/:id', (req, res) => {
+  Post.destroy({
+    where: {
+      id: req.params.id
+    }
+  })
+    .then(dbPostData => {
+      if (!dbPostData) {
+        res.status(404).json({ message: 'No post found with this id' });
+        return;
+      }
+      res.json(dbPostData);
+    })
+    .catch(err => {
+      console.log(err);
+      res.status(500).json(err);
+    });
+});
+module.exports = router;
