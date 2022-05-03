@@ -67,12 +67,17 @@ router.post("/", (req, res) => {
         username: req.body.username,
         email: req.body.email,
         password: req.body.password
-    })
-        .then(dbUserData => res.json(dbUserData))
-        .catch(err => {
-            console.log(err);
-            res.status(500).json(err);
+
+    }).then(dbUserData => {
+        // callback.  This method will initiate the creation of the session and then run the callback function once complete
+        req.session.save(() => {
+            req.session.user_id = dbUserData.id;
+            req.session.username = dbUserData.username;
+            req.session.loggedIn = true;
+
+            res.json(dbUserData);
         });
+    })
 });
 
 router.post("/login", (req, res) => {
@@ -81,26 +86,33 @@ router.post("/login", (req, res) => {
         where: {
             email: req.body.email
         }
+
+    })
         // result of the query is passed as dbUserData to the .then part of the findOne() method
-    }).then(dbUserData => {
-        if (!dbUserData) {
-            res.status(400).json({ message: "No user with that email address!" });
-            return;
-        }
+        .then(dbUserData => {
+            if (!dbUserData) {
+                res.status(400).json({ message: "No user with that email address!" });
+                return;
+            }
 
-        // if the query result is successful (not empty) we can call .checkPassword() which will be on the dbUserData object
-        // passing the plaintext password (req.body.password) into .checkPassword() as the arguement
-        const validPassword = dbUserData.checkPassword(req.body.password);
+            // if the query result is successful (not empty) we can call .checkPassword() which will be on the dbUserData object
+            // passing the plaintext password (req.body.password) into .checkPassword() as the arguement
+            const validPassword = dbUserData.checkPassword(req.body.password);
 
-        // .checkPassword() will return true or false and that boolean value will be stored to the variable validPassword
-        if (!validPassword) {
-            res.status(400).json({ message: "Incorrect password!" });
-            return;
-        }
+            // .checkPassword() will return true or false and that boolean value will be stored to the variable validPassword
+            if (!validPassword) {
+                res.status(400).json({ message: "Incorrect password!" });
+                return;
+            }
+            req.session.save(() => {
+                // declare session variables
+                req.session.user_id = dbUserData.id;
+                req.session.username = dbUserData.username;
+                req.session.loggedIn = true;
 
-        res.json({ user: dbUserData, message: "you are now logged in!" });
-        // verify user
-    });
+                res.json({ user: dbUserData, message: "you are now logged in!" });
+            });
+        });
 });
 
 // PUT /api/users/1
@@ -143,6 +155,16 @@ router.delete("/:id", (req, res) => {
             console.log(err);
             res.status(500).json(err);
         });
+});
+
+router.post("/logout", (req, res) => {
+    if (req.session.loggedIn) {
+        req.session.destroy(() => {
+            res.status(204).end();
+        });
+    } else {
+        res.status(404).end();
+    }
 });
 
 module.exports = router;
